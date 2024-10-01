@@ -3,9 +3,9 @@ import { query } from '../utils/dbSql.js';
 export class Poll {
 
     //  
-    static async create(title, description, creatorId) {
-        const sql = 'INSERT INTO Polls (title, description, creator_id) VALUES (?, ?, ?)';
-        const result = await query(sql, [title, description, creatorId]);
+    static async create(title, description, creatorId, multiChoice) {
+        const sql = 'INSERT INTO Polls (title, description, creator_id, multiChoice) VALUES (?,?,?,?)';
+        const result = await query(sql, [title, description, creatorId, multiChoice]);
         return result.insertId; // insertId 是該資料表的「自動增加的id」的那一欄位，無論該欄位的名稱是什麼。
     }
 
@@ -45,4 +45,15 @@ export class Poll {
         const sql = 'SELECT * FROM Options WHERE poll_id = ?';
         return await query(sql, [pollId]);
     }
+
+    static async getjoinedPolls(userId) {
+        const sql = `
+          SELECT DISTINCT p.* 
+          FROM Polls p 
+          JOIN Votes v ON p.id = v.poll_id 
+          WHERE v.user_id = ? 
+          ORDER BY p.created_at DESC
+        `;
+        return await query(sql, [userId]);
+      }
 }
