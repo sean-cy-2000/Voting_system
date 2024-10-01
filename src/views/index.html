@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>投票系統</title>
+    <!-- 引入 React 和 ReactDOM -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <!-- 引入 Babel 以支援 JSX 語法 -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- 引入 Redux 和 React-Redux -->
+    <script src="https://unpkg.com/redux@4.1.0/dist/redux.js"></script>
+    <script src="https://unpkg.com/react-redux@7.2.4/dist/react-redux.js"></script>
+    <style>
+        /* 設定全局樣式 */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+        }
+
+        nav {
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .poll-item {
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: box-shadow 0.3s;
+        }
+
+        .poll-item:hover {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .logout-btn {
+            background-color: #e74c3c;
+        }
+
+        .logout-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .radio-option {
+            margin: 10px 0;
+        }
+
+        .radio-option input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        form h2 {
+            margin-top: 0;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        form button[type="submit"],
+        form button[type="button"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        form button[type="button"] {
+            background-color: #2ecc71;
+        }
+
+        form button[type="button"]:hover {
+            background-color: #27ae60;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        // Redux 初始狀態設定
+        const initialState = {
+            user: null, // 當前用戶
+            polls: [], // 投票列表
+            currentPoll: null // 當前投票
+        };
+
+        // 根 Reducer，管理 Redux 的狀態
+        function rootReducer(state = initialState, action) {
+            switch (action.type) {
+                case 'SET_USER':
+                    return { ...state, user: action.payload }; // 設定當前用戶
+                case 'SET_POLLS':
+                    return { ...state, polls: action.payload }; // 設定投票列表
+                case 'SET_CURRENT_POLL':
+                    return { ...state, currentPoll: action.payload }; // 設定當前投票
+                case 'LOGOUT':
+                    return { ...state, user: null }; // 登出用戶
+                default:
+                    return state; // 返回當前狀態
+            }
+        }
+
+        // 創建 Redux 儲存庫
+        const store = Redux.createStore(rootReducer);
+
+        // API 調用函數
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            // 如果存在 token，則將其加到請求頭中
+            if (localStorage.getItem('token')) {
+                headers['Authorization'] = `Bearer ${localStorage.getItem('token')}`;
+            }
+            try {
+                const response = await fetch(`/api${endpoint}`, {
+                    method,
+                    headers,
+                    body: body ? JSON.stringify(body) : null // 根據需要轉換請求主體為 JSON
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'API call failed'); // 錯誤處理
+                }
+                return response.json(); // 返回 JSON 格式的響應
+            } catch (error) {
+                console.error(`API call to ${endpoint} failed:`, error);
+                throw error; // 捕獲錯誤
+            }
+        }
+
+        // React 組件
+        function App() {
+            const user = ReactRedux.useSelector(state => state.user); // 獲取當前用戶
+            const dispatch = ReactRedux.useDispatch(); // 獲取 dispatch 函數
+
+            // 當組件首次渲染時檢查 token 並獲取用戶資料
+            React.useEffect(() => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    apiCall('/users/profile')
+                        .then(data => dispatch({ type: 'SET_USER', payload: data.user })) // 設定用戶資料
+                        .catch(() => localStorage.removeItem('token')); // 若錯誤則移除 token
+                }
+            }, []);
+
+            // 根據用戶是否登入顯示不同的組件
+            if (!user) return <Auth />;
+            return <Main />;
+        }
+
+        // 認證組件，處理用戶的登錄和註冊
+        function Auth() {
+            const [isLogin, setIsLogin] = React.useState(true); // 登錄模式
+            const [username, setUsername] = React.useState(''); // 用戶名
+            const [password, setPassword] = React.useState(''); // 密碼
+            const dispatch = ReactRedux.useDispatch(); // 獲取 dispatch 函數
+
+            // 提交表單的處理函數
+            const handleSubmit = async (e) => {
+                e.preventDefault(); // 防止默認表單提交
+                const endpoint = isLogin ? '/users/login' : '/users/register'; // 根據當前模式選擇 API 路徑
+                try {
+                    const data = await apiCall(endpoint, 'POST', { username, password });
+                    if (data.token) {
+                        localStorage.setItem('token', data.token); // 存儲 token
+                        const userData = await apiCall('/users/profile'); // 獲取用戶資料
+                        dispatch({ type: 'SET_USER', payload: userData.user }); // 設定用戶資料
+                    }
+                } catch (error) {
+                    alert('認證失敗'); // 錯誤提示
+                }
+            };
+
+            // 渲染登錄/註冊表單
+            return (
+                <form onSubmit={handleSubmit}>
+                    <h2>{isLogin ? '登錄' : '註冊'}</h2>
+                    <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)} // 監聽用戶名輸入
+                        placeholder="用戶名"
+                        required
+                    />
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)} // 監聽密碼輸入
+                        placeholder="密碼"
+                        required
+                    />
+                    <button type="submit">{isLogin ? '登錄' : '註冊'}</button>
+                    <button type="button" onClick={() => setIsLogin(!isLogin)}>
+                        切換到{isLogin ? '註冊' : '登錄'}
+                    </button>
+                </form>
+            );
+        }
+
+        // 主要界面組件，顯示投票列表和當前投票
+        function Main() {
+            const polls = ReactRedux.useSelector(state => state.polls); // 獲取投票列表
+            const dispatch = ReactRedux.useDispatch(); // 獲取 dispatch 函數
+
+            // 獲取投票的函數
+            const fetchPolls = async () => {
+                try {
+                    const data = await apiCall('/polls');
+                    dispatch({ type: 'SET_POLLS', payload: data.polls }); // 設定投票列表
+                } catch (error) {
+                    console.error('Failed to fetch polls:', error);
+                }
+            };
+
+            // 提交投票的函數
+            const handleVote = async (pollId, optionId) => {
+                try {
+                    await apiCall(`/polls/${pollId}/votes`, 'POST', { optionId });
+                    fetchPolls(); // 重新獲取投票列表
+                } catch (error) {
+                    console.error('Failed to submit vote:', error);
+                }
+            };
+
+            // 當組件首次渲染時獲取投票
+            React.useEffect(() => {
+                fetchPolls();
+            }, []);
+
+            // 渲染投票列表
+            return (
+                <div>
+                    <h1>投票系統</h1>
+                    <h2>可用投票</h2>
+                    {polls.map(poll => (
+                        <div key={poll.id} className="poll-item">
+                            <h3>{poll.title}</h3>
+                            {poll.options.map(option => (
+                                <div key={option.id} className="radio-option">
+                                    <input
+                                        type="radio"
+                                        name={`poll_${poll.id}`}
+                                        onChange={() => handleVote(poll.id, option.id)} // 提交投票
+                                    />
+                                    {option.text}
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                    <button className="logout-btn" onClick={() => {
+                        localStorage.removeItem('token'); // 登出
+                        dispatch({ type: 'LOGOUT' }); // 清除用戶狀態
+                    }}>
+                        登出
+                    </button>
+                </div>
+            );
+        }
+
+        // 渲染 React 組件
+        ReactDOM.render(
+            <ReactRedux.Provider store={store}>
+                <App />
+            </ReactRedux.Provider>,
+            document.getElementById('root')
+        );
+    </script>
+</body>
+
+</html>

@@ -13,7 +13,7 @@ export function loginCheckToken(req, res, next) {
 
   // jwt.verify(要驗證的token字串, 密鑰, 回調函數(錯誤, 解密後的內容))
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return json({message:'登入資訊錯誤'});  // 如果 err 存在則代表 token 無效，返回 403
+    if (err) return json({message:'登入資訊錯誤'}); // 如果 err 存在則代表 token 無效，返回 403
     req.user = user;
     next();/*
     根據 ../routes/userRoutes.js 中的

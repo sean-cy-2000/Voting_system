@@ -45,4 +45,10 @@ export class Poll {
         const sql = 'SELECT * FROM Options WHERE poll_id = ?';
         return await query(sql, [pollId]);
     }
+
+    static async getStatus(id) {
+        const sql = 'SELECT status FROM Polls WHERE id = ?';
+        const result = await query(sql, [id]);
+        return result[0] ? result[0].status : null;
+    }
 }

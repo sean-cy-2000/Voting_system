@@ -16,6 +16,16 @@ app.use('/api/polls', pollRoutes);
 app.use('/api/votes', voteRoutes);
 
 app.listen(PORT, () => {
-  console.log(`正在執行： ${PORT}`);
+  console.log(`正在執行： http://localhost:${PORT}/`);
 });
 
+// 前端部份：
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
+});
