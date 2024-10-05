@@ -2,7 +2,7 @@ import { query } from '../utils/dbSql.js';
 
 export class Poll {
 
-    //  
+    
     static async create(title, description, creatorId) {
         const sql = 'INSERT INTO Polls (title, description, creator_id) VALUES (?, ?, ?)';
         const result = await query(sql, [title, description, creatorId]);
